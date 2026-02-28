@@ -28,56 +28,59 @@
 
 ### Low-Latency 模式 (16 EP, 128 tokens, 7168 hidden, top-8, FP8 dispatch + BF16 combine)
 
-| 方案 | Dispatch 延迟 | Dispatch BW | Combine 延迟 | Combine BW | D+C 总延迟 | 硬件 |
-|------|-------------|------------|-------------|------------|-----------|------|
-| **DeepEP** (IBGDA) | 118 us | 63 GB/s | 195 us | 74 GB/s | ~313 us | H800 + CX7 IB |
-| **pplx-garden** CX7 | 110 us | - | 186 us | - | ~296 us | H100 + CX7 IB |
-| **pplx-garden** EFA (官方) | 215 us | - | 242 us | - | ~457 us | H100 + EFA |
-| **pplx-garden** NVL+RDMA (实测) | 145 us | 52.4 GB/s | 221 us | 66.7 GB/s | **~366 us** | B200 + 400G EFA |
-| **pplx-garden** 纯 RDMA (实测) | 220 us | 34.4 GB/s | 364 us | 40.4 GB/s | ~584 us | B200 + 400G EFA |
-| **UCCL-EP** (README) | 228 us | 33 GB/s | 318 us | 46 GB/s | ~546 us | B200 + 400G EFA |
-| **UCCL-EP** test_low_latency (实测) | - | - | - | - | ~504 us | B200 + 400G EFA |
-| **UCCL-EP** pplx-style (实测) | 183 us | 41.4 GB/s | 335 us | 43.8 GB/s | ~519 us | B200 + 400G EFA |
-
-### Normal 模式 (16 EP, 4096 tokens, 7168 hidden, top-8)
+#### 官方 README 数据
 
 | 方案 | Dispatch 延迟 | Dispatch BW | Combine 延迟 | Combine BW | D+C 总延迟 | 硬件 |
 |------|-------------|------------|-------------|------------|-----------|------|
-| **DeepEP** (IBGDA) | - | 43-58 GB/s | - | 类似 | - | H800 + CX7 IB |
-| **pplx-garden** EFA (官方) | 3197 us | - | 5379 us | - | ~8576 us | H100 + EFA |
-| **pplx-garden** NVL+RDMA (实测) | 2903 us | 83.4 GB/s | 5187 us | 90.6 GB/s | **~8090 us** | B200 + 400G EFA |
-| **pplx-garden** 纯 RDMA (实测) | 5148 us | 47.1 GB/s | 9566 us | 49.1 GB/s | ~14714 us | B200 + 400G EFA |
-| **UCCL-EP** (实测) | - | 49.7 GB/s | - | 57.7 GB/s | - | B200 + 400G EFA |
+| **DeepEP** | 118 us | 63 GB/s | 195 us | 74 GB/s | ~313 us | H800 + CX7 IB 400Gb/s |
+| **pplx-garden** (CX7) | 110 us | — | 186 us | — | ~296 us | H100 + CX7 |
+| **pplx-garden** (EFA) | 215 us | — | 242 us | — | ~457 us | H100 + EFA |
+| **UCCL-EP** (p6-b200) | 228 us | 33 GB/s | 318 us | 46 GB/s | ~546 us | B200 + 400G EFA |
+| **UCCL-EP** (p5en) | 226 us | 36 GB/s | 293 us | 48 GB/s | ~519 us | H200 + 200G EFA ×2 |
+
+> 注：DeepEP 使用 DeepSeek-V3 配置（256 experts）；UCCL-EP 使用 288 experts；pplx-garden 官方未注明 experts 数量。
+
+#### 实测数据（B200 + 400G EFA, 16 EP, 288 experts）
+
+| 方案 | Dispatch 延迟 | Dispatch BW | Combine 延迟 | Combine BW | D+C 总延迟 |
+|------|-------------|------------|-------------|------------|-----------|
+| **pplx-garden** (NVL+RDMA) | 145 us | 52.4 GB/s | 221 us | 66.7 GB/s | **~366 us** |
+| **pplx-garden** (纯 RDMA) | 220 us | 34.4 GB/s | 364 us | 40.4 GB/s | ~584 us |
+| **UCCL-EP** (pplx-style) | 183 us | 41.4 GB/s | 335 us | 43.8 GB/s | ~519 us |
+| **UCCL-EP** (test_low_latency) | — | — | — | — | ~504 us |
+
+> 注：pplx-garden (NVL+RDMA) 的 BW 包含 NVLink 部分，不能与纯 RDMA 方案直接对比。UCCL-EP pplx-style 使用 `test_low_latency_pplx.py`（288 experts），与 pplx-garden 的 benchmark 进行 apple-to-apple 对比。UCCL-EP test_low_latency 仅报告 D+C 总延迟。
+
+### Normal 模式 (16 EP, 4096 tokens, 7168 hidden, top-4 groups, top-8, FP8 dispatch + BF16 combine)
+
+#### 官方 README 数据
+
+| 方案 | Dispatch 延迟 | Dispatch BW | Combine 延迟 | Combine BW | D+C 总延迟 | 硬件 |
+|------|-------------|------------|-------------|------------|-----------|------|
+| **DeepEP** | — | 43 GB/s (RDMA) | — | 43 GB/s (RDMA) | — | H800 + CX7 IB 400Gb/s |
+| **pplx-garden** (CX7) | 2735 us | — | 1062 us | — | ~3797 us | H100 + CX7 |
+| **pplx-garden** (EFA) | 3197 us | — | 5379 us | — | ~8576 us | H100 + EFA |
+| **UCCL-EP** (p6-b200) | 1141 us | 53 GB/s (RDMA) | 1965 us | 60 GB/s (RDMA) | ~3106 us | B200 + 400G EFA |
+| **UCCL-EP** (p5en) | 1196 us | 50 GB/s (RDMA) | 6379 us | 18 GB/s (RDMA) | ~7575 us | H200 + 200G EFA ×2 |
+
+> 注：DeepEP 仅报告 RDMA 瓶颈带宽，未提供延迟数据。pplx-garden 官方数据来自 H100，UCCL-EP p6-b200 数据来自 B200。UCCL-EP 和 DeepEP 报告的 BW 为 RDMA 瓶颈带宽。
+
+#### 实测数据（B200 + 400G EFA, 16 EP, 288 experts）
+
+| 方案 | Dispatch 延迟 | Dispatch BW | Combine 延迟 | Combine BW | D+C 总延迟 |
+|------|-------------|------------|-------------|------------|-----------|
+| **pplx-garden** (NVL+RDMA) | 2903 us | 83.4 GB/s | 5187 us | 90.6 GB/s | ~8090 us |
+| **pplx-garden** (纯 RDMA) | 5148 us | 47.1 GB/s | 9566 us | 49.1 GB/s | ~14714 us |
+
+> 注：pplx-garden (NVL+RDMA) 的 BW 包含 NVLink 部分。纯 RDMA 模式下 EFA 实际吞吐量为 47-49 GB/s。
 
 ### 带宽数据解读
 
-pplx-garden Normal 模式报告 83-91 GB/s，远高于 UCCL-EP 的 50-58 GB/s，但 **并非 EFA 吞吐量更高**，根因是架构差异：
+所有方案在 Normal 模式下都使用混合 NVLink + RDMA 架构：节点内走 NVLink，节点间走 RDMA。pplx-garden 报告的 83-91 GB/s 包含了 NVLink 部分（计算公式为总数据量/总时间），而 DeepEP 和 UCCL-EP 报告的是 RDMA 瓶颈带宽。
 
-```
-pplx-garden (NVLink + RDMA 混合):
-  节点内 8/16 GPU → NVLink (~900 GB/s)  → 几乎瞬间完成
-  节点间 8/16 GPU → EFA RDMA            → 只传 ~50% 数据
-  报告带宽 = 全部数据量 / 总时间 = 看起来很高
+pplx-garden 纯 RDMA 实测（47.1 GB/s）验证了实际 EFA 吞吐量，与 UCCL-EP 的 RDMA 带宽（53 GB/s on B200）基本一致。
 
-UCCL-EP (同样混合 NVLink + RDMA):
-  节点内 8/16 GPU → NVLink               → 几乎瞬间完成
-  节点间 8/16 GPU → RDMA (ibverbs)       → 只传 ~50% 数据
-  报告带宽较低，可能与带宽计算公式差异有关
-```
-
-反推实际 EFA 吞吐量（仅节点间数据）：
-
-| 方案 | 报告带宽 | 实际 EFA 吞吐量（估算） |
-|------|---------|----------------------|
-| pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s（50% 数据走 EFA）|
-| pplx-garden (纯 RDMA，实测) | 47.1 GB/s | **47.1 GB/s**（100% 数据走 EFA）|
-| UCCL-EP (同样 NVL+RDMA) | 49.7 GB/s | ~49.7 GB/s（BW 计算公式可能不同）|
-
-> 纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。
->
-> LL 模式下差距较小（366 vs 504 us），因为 UCCL-EP 在 LL 模式也使用 NVLink（`allow_nvlink_for_low_latency_mode=True`），差距主要来自 kernel/proxy 实现效率差异。
->
-> 使用 UCCL-EP 的 pplx-style benchmark（`test_low_latency_pplx.py`，288 experts）进行 apple-to-apple 对比，UCCL-EP D+C ~519 us vs pplx-garden ~366 us。
+LL 模式下，pplx-garden（366 us）vs UCCL-EP（519 us），两者都使用 NVLink + RDMA 混合架构，差距主要来自 kernel/proxy 实现效率。
 
 ## 各方案详细分析
 
@@ -109,13 +112,12 @@ UCCL-EP (同样混合 NVLink + RDMA):
 - **唯一支持 AMD GPU** 的方案（CUDA + HIP）
 - API 兼容 DeepEP，可直接替换
 - 已在 p5en (H200)、p6-b200 (B200)、MI300X 等多平台验证
-- Normal 模式 EFA 实际吞吐量最高（49.7 GB/s vs pplx-garden 的 ~41.7 GB/s）
 
 **不足**：
-- LL 模式延迟高于 pplx-garden（504 us vs 366 us），差距主要来自 kernel/proxy 实现效率差异
+- LL 模式延迟高于 pplx-garden（实测 519 us vs 366 us on B200），差距主要来自 kernel/proxy 实现效率差异
 - LL 模式因 CPU proxy 开销，延迟比 IBGDA 方案高 ~1.6x
 
-**结论**：当前最成熟、最可靠的 EFA 方案。跨平台兼容性最强。EFA 实际利用率最高。
+**结论**：当前最成熟、最可靠的 EFA 方案。跨平台兼容性最强。
 
 ### 方案 3：修改 NVSHMEM 支持 EFA
 
@@ -143,7 +145,7 @@ UCCL-EP (同样混合 NVLink + RDMA):
 
 **优势**：
 - 原生支持 EFA 和 CX7，有完整的性能对比数据
-- EFA 上 LL 性能在现有方案中最好（16EP D+C ~366 us on B200，~457 us on H100）
+- EFA 上 LL 性能在现有方案中最好（实测 16EP D+C ~366 us on B200，官方 ~457 us on H100）
 - DeepEP 官方维护者推荐作为 EFA 替代方案（[issue #369](https://github.com/deepseek-ai/DeepEP/issues/369)）
 - 支持 split send/recv 以及 micro-batching，RDMA 传输期间 SM-free
 - NVLink + RDMA 混合架构有效降低 EFA 负载
@@ -153,19 +155,18 @@ UCCL-EP (同样混合 NVLink + RDMA):
 - Rust 生态，与现有 Python/C++ 推理框架集成需额外工作
 - 不支持 AMD GPU
 - 社区较小（370 star）
-- 报告的带宽数据包含 NVLink 部分，与 UCCL-EP/DeepEP 不能直接对比
 
-**结论**：EFA 上端到端 LL 延迟最低的现有开源方案，但生态兼容性差，带宽数据需注意架构差异。
+**结论**：EFA 上端到端 LL 延迟最低的现有开源方案，但生态兼容性差。
 
 ## 根因分析：为什么 EFA 上 LL 延迟更高？
 
 所有 EFA 方案在 LL 模式下都比 DeepEP IBGDA 慢，根因是：
 
 ```
-DeepEP (IBGDA):  GPU kernel → NIC doorbell  (~118 us dispatch)
+DeepEP (IBGDA):  GPU kernel → NIC doorbell  (118 us dispatch)
                  零 CPU 参与
 
-EFA 方案:        GPU kernel → CPU proxy → EFA NIC  (~145-228 us dispatch)
+EFA 方案:        GPU kernel → CPU proxy → EFA NIC  (145-228 us dispatch)
                  额外一跳 GPU↔CPU 通信开销
 ```
 
@@ -178,8 +179,7 @@ EFA 不支持 IBGDA/GDAKI，GPU 无法直接操作 NIC，必须通过 CPU 转发
 | 需求场景 | 推荐方案 | 理由 |
 |---------|---------|------|
 | 现在就要在 EFA 上跑 EP | **UCCL-EP** | 最成熟，API 兼容 DeepEP |
-| 追求 EFA 上最低端到端 LL 延迟 | **pplx-garden** | D+C ~366 us vs ~504 us (B200) |
-| 追求最高 EFA 网络利用率 | **UCCL-EP** | 实际 EFA 吞吐量更高（49.7 vs ~41.7 GB/s）|
+| 追求 EFA 上最低端到端 LL 延迟 | **pplx-garden** | 实测 D+C ~366 us vs UCCL-EP ~519 us (B200) |
 | 需要 AMD GPU 支持 | **UCCL-EP** | 唯一支持 AMD 的方案 |
 | 想保持 DeepEP 代码不改 | **UCCL-EP** > NCCL GIN | UCCL-EP API 兼容；NCCL GIN 兼容性问题多 |
 | 长期投资 GPU-direct on EFA | 关注 **efa-dp-direct** + NVSHMEM | 唯一可能达到 IBGDA 级 LL 性能的路径 |

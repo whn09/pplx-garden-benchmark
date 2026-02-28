@@ -28,56 +28,59 @@ This document compares 4 approaches to enable DeepEP-equivalent functionality on
 
 ### Low-Latency Mode (16 EP, 128 tokens, 7168 hidden, top-8, FP8 dispatch + BF16 combine)
 
-| Approach | Dispatch Latency | Dispatch BW | Combine Latency | Combine BW | D+C Total | Hardware |
-|----------|-----------------|-------------|-----------------|------------|-----------|----------|
-| **DeepEP** (IBGDA) | 118 us | 63 GB/s | 195 us | 74 GB/s | ~313 us | H800 + CX7 IB |
-| **pplx-garden** CX7 | 110 us | - | 186 us | - | ~296 us | H100 + CX7 IB |
-| **pplx-garden** EFA (README) | 215 us | - | 242 us | - | ~457 us | H100 + EFA |
-| **pplx-garden** NVL+RDMA (measured) | 145 us | 52.4 GB/s | 221 us | 66.7 GB/s | **~366 us** | B200 + 400G EFA |
-| **pplx-garden** RDMA-only (measured) | 220 us | 34.4 GB/s | 364 us | 40.4 GB/s | ~584 us | B200 + 400G EFA |
-| **UCCL-EP** (README) | 228 us | 33 GB/s | 318 us | 46 GB/s | ~546 us | B200 + 400G EFA |
-| **UCCL-EP** test_low_latency (measured) | - | - | - | - | ~504 us | B200 + 400G EFA |
-| **UCCL-EP** pplx-style (measured) | 183 us | 41.4 GB/s | 335 us | 43.8 GB/s | ~519 us | B200 + 400G EFA |
-
-### Normal (High-Throughput) Mode (16 EP, 4096 tokens, 7168 hidden, top-8)
+#### Official README Data
 
 | Approach | Dispatch Latency | Dispatch BW | Combine Latency | Combine BW | D+C Total | Hardware |
 |----------|-----------------|-------------|-----------------|------------|-----------|----------|
-| **DeepEP** (IBGDA) | - | 43-58 GB/s | - | Similar | - | H800 + CX7 IB |
-| **pplx-garden** EFA (README) | 3197 us | - | 5379 us | - | ~8576 us | H100 + EFA |
-| **pplx-garden** NVL+RDMA (measured) | 2903 us | 83.4 GB/s | 5187 us | 90.6 GB/s | **~8090 us** | B200 + 400G EFA |
-| **pplx-garden** RDMA-only (measured) | 5148 us | 47.1 GB/s | 9566 us | 49.1 GB/s | ~14714 us | B200 + 400G EFA |
-| **UCCL-EP** (measured) | - | 49.7 GB/s | - | 57.7 GB/s | - | B200 + 400G EFA |
+| **DeepEP** | 118 us | 63 GB/s | 195 us | 74 GB/s | ~313 us | H800 + CX7 IB 400Gb/s |
+| **pplx-garden** (CX7) | 110 us | — | 186 us | — | ~296 us | H100 + CX7 |
+| **pplx-garden** (EFA) | 215 us | — | 242 us | — | ~457 us | H100 + EFA |
+| **UCCL-EP** (p6-b200) | 228 us | 33 GB/s | 318 us | 46 GB/s | ~546 us | B200 + 400G EFA |
+| **UCCL-EP** (p5en) | 226 us | 36 GB/s | 293 us | 48 GB/s | ~519 us | H200 + 200G EFA x2 |
+
+> Note: DeepEP uses DeepSeek-V3 config (256 experts); UCCL-EP uses 288 experts; pplx-garden official README does not specify expert count.
+
+#### Measured Data (B200 + 400G EFA, 16 EP, 288 experts)
+
+| Approach | Dispatch Latency | Dispatch BW | Combine Latency | Combine BW | D+C Total |
+|----------|-----------------|-------------|-----------------|------------|-----------|
+| **pplx-garden** (NVL+RDMA) | 145 us | 52.4 GB/s | 221 us | 66.7 GB/s | **~366 us** |
+| **pplx-garden** (RDMA-only) | 220 us | 34.4 GB/s | 364 us | 40.4 GB/s | ~584 us |
+| **UCCL-EP** (pplx-style) | 183 us | 41.4 GB/s | 335 us | 43.8 GB/s | ~519 us |
+| **UCCL-EP** (test_low_latency) | — | — | — | — | ~504 us |
+
+> Note: pplx-garden (NVL+RDMA) BW includes NVLink portion and cannot be directly compared with RDMA-only approaches. UCCL-EP pplx-style uses `test_low_latency_pplx.py` (288 experts) for apple-to-apple comparison with pplx-garden's benchmark. UCCL-EP test_low_latency only reports D+C total latency.
+
+### Normal (High-Throughput) Mode (16 EP, 4096 tokens, 7168 hidden, top-4 groups, top-8, FP8 dispatch + BF16 combine)
+
+#### Official README Data
+
+| Approach | Dispatch Latency | Dispatch BW | Combine Latency | Combine BW | D+C Total | Hardware |
+|----------|-----------------|-------------|-----------------|------------|-----------|----------|
+| **DeepEP** | — | 43 GB/s (RDMA) | — | 43 GB/s (RDMA) | — | H800 + CX7 IB 400Gb/s |
+| **pplx-garden** (CX7) | 2735 us | — | 1062 us | — | ~3797 us | H100 + CX7 |
+| **pplx-garden** (EFA) | 3197 us | — | 5379 us | — | ~8576 us | H100 + EFA |
+| **UCCL-EP** (p6-b200) | 1141 us | 53 GB/s (RDMA) | 1965 us | 60 GB/s (RDMA) | ~3106 us | B200 + 400G EFA |
+| **UCCL-EP** (p5en) | 1196 us | 50 GB/s (RDMA) | 6379 us | 18 GB/s (RDMA) | ~7575 us | H200 + 200G EFA x2 |
+
+> Note: DeepEP only reports RDMA bottleneck bandwidth, no latency data. pplx-garden official data is from H100; UCCL-EP p6-b200 data is from B200. UCCL-EP and DeepEP report RDMA bottleneck bandwidth.
+
+#### Measured Data (B200 + 400G EFA, 16 EP, 288 experts)
+
+| Approach | Dispatch Latency | Dispatch BW | Combine Latency | Combine BW | D+C Total |
+|----------|-----------------|-------------|-----------------|------------|-----------|
+| **pplx-garden** (NVL+RDMA) | 2903 us | 83.4 GB/s | 5187 us | 90.6 GB/s | ~8090 us |
+| **pplx-garden** (RDMA-only) | 5148 us | 47.1 GB/s | 9566 us | 49.1 GB/s | ~14714 us |
+
+> Note: pplx-garden (NVL+RDMA) BW includes NVLink portion. RDMA-only mode shows actual EFA throughput of 47-49 GB/s.
 
 ### Bandwidth Interpretation
 
-pplx-garden reports 83-91 GB/s in Normal mode, much higher than UCCL-EP's 50-58 GB/s. However, **this does not mean higher EFA throughput** — the difference is architectural:
+All approaches use hybrid NVLink + RDMA architecture in Normal mode: NVLink for intra-node, RDMA for inter-node. pplx-garden reports 83-91 GB/s which includes the NVLink portion (formula: total_data / total_time), while DeepEP and UCCL-EP report RDMA bottleneck bandwidth.
 
-```
-pplx-garden (NVLink + RDMA hybrid):
-  Intra-node 8/16 GPUs → NVLink (~900 GB/s)  → nearly instant
-  Inter-node 8/16 GPUs → EFA RDMA             → only ~50% data on wire
-  Reported BW = total_data / total_time = appears high
+pplx-garden RDMA-only measurement (47.1 GB/s) validates the actual EFA throughput, which is consistent with UCCL-EP's RDMA bandwidth (53 GB/s on B200).
 
-UCCL-EP (also hybrid NVLink + RDMA):
-  Intra-node 8/16 GPUs → NVLink               → nearly instant
-  Inter-node 8/16 GPUs → RDMA (ibverbs)        → only ~50% data on wire
-  Reported BW may differ due to calculation formula differences
-```
-
-Estimated actual EFA throughput (inter-node data only):
-
-| Approach | Reported BW | Estimated EFA Throughput |
-|----------|------------|-------------------------|
-| pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s (50% data on EFA) |
-| pplx-garden (RDMA-only, measured) | 47.1 GB/s | **47.1 GB/s** (100% data on EFA) |
-| UCCL-EP (also NVL+RDMA) | 49.7 GB/s | ~49.7 GB/s (BW calculation may differ) |
-
-> RDMA-only measurement confirms the analysis: pplx-garden without NVLink achieves 47-49 GB/s EFA throughput, on par with UCCL-EP's 50-58 GB/s.
->
-> In LL mode the gap is smaller (366 vs 504 us), because UCCL-EP also uses NVLink in LL mode (`allow_nvlink_for_low_latency_mode=True`). The remaining gap is due to kernel/proxy implementation efficiency.
->
-> Using UCCL-EP's pplx-style benchmark (`test_low_latency_pplx.py`, 288 experts) for apple-to-apple comparison, UCCL-EP D+C ~519 us vs pplx-garden ~366 us.
+In LL mode, pplx-garden (366 us) vs UCCL-EP (519 us) — both use hybrid NVLink + RDMA architecture, the gap is mainly from kernel/proxy implementation efficiency.
 
 ## Detailed Analysis
 
@@ -109,13 +112,12 @@ Estimated actual EFA throughput (inter-node data only):
 - **Only solution supporting AMD GPUs** (CUDA + HIP)
 - DeepEP-compatible API, drop-in replacement
 - Validated on p5en (H200), p6-b200 (B200), MI300X, and more
-- Highest actual EFA throughput in Normal mode (49.7 GB/s vs pplx-garden's ~41.7 GB/s)
 
 **Limitations**:
-- LL mode latency higher than pplx-garden (504 us vs 366 us), mainly due to kernel/proxy implementation efficiency differences
+- LL mode latency higher than pplx-garden (measured 519 us vs 366 us on B200), mainly due to kernel/proxy implementation efficiency differences
 - LL mode latency ~1.6x higher than IBGDA due to CPU proxy overhead
 
-**Verdict**: The most mature and reliable EFA solution today. Best cross-platform compatibility. Highest actual EFA utilization.
+**Verdict**: The most mature and reliable EFA solution today. Best cross-platform compatibility.
 
 ### Approach 3: Modified NVSHMEM for EFA
 
@@ -143,7 +145,7 @@ Estimated actual EFA throughput (inter-node data only):
 
 **Strengths**:
 - Native EFA and CX7 support with complete benchmark data
-- Best end-to-end LL latency on EFA (16EP D+C ~366 us on B200, ~457 us on H100)
+- Best end-to-end LL latency on EFA (measured 16EP D+C ~366 us on B200, official ~457 us on H100)
 - Recommended by DeepEP maintainers as an EFA alternative ([issue #369](https://github.com/deepseek-ai/DeepEP/issues/369))
 - Supports split send/recv and micro-batching; SM-free during RDMA transfers
 - NVLink + RDMA hybrid architecture effectively reduces EFA load
@@ -153,19 +155,18 @@ Estimated actual EFA throughput (inter-node data only):
 - Rust ecosystem requires additional integration work with existing Python/C++ inference frameworks
 - No AMD GPU support
 - Smaller community (370 stars)
-- Reported bandwidth includes NVLink portion, not directly comparable with UCCL-EP/DeepEP
 
-**Verdict**: Lowest end-to-end LL latency on EFA among existing open-source solutions, but poor ecosystem compatibility. Bandwidth data must be interpreted considering architectural differences.
+**Verdict**: Lowest end-to-end LL latency on EFA among existing open-source solutions, but poor ecosystem compatibility.
 
 ## Root Cause: Why is LL Latency Higher on EFA?
 
 All EFA-based approaches show higher LL mode latency than DeepEP with IBGDA. The fundamental reason is:
 
 ```
-DeepEP (IBGDA):  GPU kernel → NIC doorbell  (~118 us dispatch)
+DeepEP (IBGDA):  GPU kernel → NIC doorbell  (118 us dispatch)
                  Zero CPU involvement
 
-EFA approaches:  GPU kernel → CPU proxy → EFA NIC  (~145-228 us dispatch)
+EFA approaches:  GPU kernel → CPU proxy → EFA NIC  (145-228 us dispatch)
                  Extra GPU↔CPU communication hop
 ```
 
@@ -178,8 +179,7 @@ EFA does not support IBGDA/GDAKI, so GPUs cannot directly operate the NIC. All E
 | Use Case | Recommended Approach | Rationale |
 |----------|---------------------|-----------|
 | Need EP on EFA now | **UCCL-EP** | Most mature, DeepEP-compatible API |
-| Lowest end-to-end LL latency on EFA | **pplx-garden** | D+C ~366 us vs ~504 us (B200) |
-| Highest actual EFA utilization | **UCCL-EP** | 49.7 GB/s vs ~41.7 GB/s actual EFA throughput |
+| Lowest end-to-end LL latency on EFA | **pplx-garden** | Measured D+C ~366 us vs UCCL-EP ~519 us (B200) |
 | Need AMD GPU support | **UCCL-EP** | Only solution supporting AMD |
 | Keep DeepEP code unchanged | **UCCL-EP** > NCCL GIN | UCCL-EP is API-compatible; NCCL GIN has compat issues |
 | Long-term GPU-direct on EFA | Watch **efa-dp-direct** + NVSHMEM | Only path to IBGDA-level LL performance |
