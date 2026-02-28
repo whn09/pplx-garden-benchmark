@@ -125,6 +125,8 @@ echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 # 在 bastion 机器上执行，会 SSH 到两个节点并行启动 benchmark
 bash scripts/run_ll.sh
 bash scripts/run_normal.sh
+bash scripts/run_ll_rdma_only.sh
+bash scripts/run_normal_rdma_only.sh
 bash scripts/run_uccl_pplx_ll.sh
 ```
 
