@@ -20,7 +20,7 @@
 | **EFA 已验证** | 未验证（有已知兼容性 bug） | 已验证，多平台 | 未验证 | 已验证，有性能数据 |
 | **支持 AMD GPU** | 不支持 (NCCL 限制) | 支持 | 不支持 (NVSHMEM 限制) | 不支持 |
 | **API 兼容 DeepEP** | 是（同一代码库） | 是（兼容接口） | 是（同一代码库） | 否（独立 API） |
-| **节点内传输** | NVLink (via NCCL) | LL 模式用 NVLink，Normal 全走 RDMA | NVLink (via NVSHMEM) | NVLink（始终混合 NVLink + RDMA） |
+| **节点内传输** | NVLink (via NCCL) | NVLink（始终混合 NVLink + RDMA） | NVLink (via NVSHMEM) | NVLink（始终混合 NVLink + RDMA） |
 | **实现语言** | C++/CUDA | C++/CUDA | C++/CUDA | Rust + CUDA |
 | **开源状态** | PR 未合并 | 已开源 | 需自行改造 | 已开源 |
 
@@ -59,9 +59,10 @@ pplx-garden (NVLink + RDMA 混合):
   节点间 8/16 GPU → EFA RDMA            → 只传 ~50% 数据
   报告带宽 = 全部数据量 / 总时间 = 看起来很高
 
-UCCL-EP (全 RDMA):
-  所有 16/16 GPU → RDMA (ibverbs)       → EFA 搬运 100% 数据
-  报告带宽 = 全部数据量 / 总时间 = EFA 实际吞吐量
+UCCL-EP (同样混合 NVLink + RDMA):
+  节点内 8/16 GPU → NVLink               → 几乎瞬间完成
+  节点间 8/16 GPU → RDMA (ibverbs)       → 只传 ~50% 数据
+  报告带宽较低，可能与带宽计算公式差异有关
 ```
 
 反推实际 EFA 吞吐量（仅节点间数据）：
@@ -70,7 +71,7 @@ UCCL-EP (全 RDMA):
 |------|---------|----------------------|
 | pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s（50% 数据走 EFA）|
 | pplx-garden (纯 RDMA，实测) | 47.1 GB/s | **47.1 GB/s**（100% 数据走 EFA）|
-| UCCL-EP (全 RDMA) | 49.7 GB/s | **49.7 GB/s**（100% 数据走 EFA）|
+| UCCL-EP (同样 NVL+RDMA) | 49.7 GB/s | ~49.7 GB/s（BW 计算公式可能不同）|
 
 > 纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。
 >
@@ -111,7 +112,7 @@ UCCL-EP (全 RDMA):
 - Normal 模式 EFA 实际吞吐量最高（49.7 GB/s vs pplx-garden 的 ~41.7 GB/s）
 
 **不足**：
-- LL 模式延迟高于 pplx-garden（504 us vs 366 us），部分原因是 Normal 模式下节点内也走 RDMA
+- LL 模式延迟高于 pplx-garden（504 us vs 366 us），差距主要来自 kernel/proxy 实现效率差异
 - LL 模式因 CPU proxy 开销，延迟比 IBGDA 方案高 ~1.6x
 
 **结论**：当前最成熟、最可靠的 EFA 方案。跨平台兼容性最强。EFA 实际利用率最高。

@@ -171,30 +171,24 @@ NVLink 加速效果：D+C 从 14714 μs 降至 8090 μs，**节省 45%**。
 
 ## 带宽数据解读
 
-pplx-garden Normal 模式报告的 83-91 GB/s 带宽远高于 UCCL-EP 的 50-58 GB/s，但这 **不是 EFA 吞吐量更高**，而是架构差异导致的：
+pplx-garden Normal 模式报告的 83-91 GB/s 带宽远高于 UCCL-EP 的 50-58 GB/s。经代码验证，**两者在 Normal 模式下架构相同**：节点内走 NVLink，节点间走 RDMA。带宽差异主要来自带宽计算公式不同和 RDMA 实现效率差异（pplx-garden 用 libfabric，UCCL-EP 用 ibverbs）。
 
 ```
-pplx-garden (NVLink + RDMA 混合):
+pplx-garden 和 UCCL-EP（Normal 模式架构相同）:
   节点内 8/16 GPU → NVLink (~900 GB/s)  → 几乎瞬间完成
-  节点间 8/16 GPU → EFA RDMA            → 只传 ~50% 数据
-  报告带宽 = 全部数据量 / 总时间 = 看起来很高
-
-UCCL-EP (全 RDMA):
-  所有 16/16 GPU → RDMA (ibverbs)       → EFA 搬运 100% 数据
-  报告带宽 = 全部数据量 / 总时间 = EFA 实际吞吐量
+  节点间 8/16 GPU → RDMA               → 只传 ~50% 数据
+  带宽差异来自计算公式和实现效率，而非架构差异
 ```
 
-反推 **实际 EFA 吞吐量**（仅计算节点间数据）：
+pplx-garden 纯 RDMA 模式（去掉 `--nvlink=8`）实测 EFA 吞吐量为 47-49 GB/s，可作为 EFA 实际能力的参考：
 
-| 方案 | 报告带宽 | 实际 EFA 吞吐量（估算） |
-|------|---------|----------------------|
-| pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s（50% 数据走 EFA）|
-| pplx-garden (纯 RDMA，实测) | 47.1 GB/s | **47.1 GB/s**（100% 数据走 EFA）|
-| UCCL-EP (全 RDMA) | 49.7 GB/s | **49.7 GB/s**（100% 数据走 EFA）|
+| 方案 | 报告带宽 | 备注 |
+|------|---------|------|
+| pplx-garden (NVL+RDMA) | 83.4 GB/s | NVLink + RDMA 混合 |
+| pplx-garden (纯 RDMA，实测) | 47.1 GB/s | 100% 数据走 EFA，EFA 实际吞吐量 |
+| UCCL-EP (NVL+RDMA) | 49.7 GB/s | NVLink + RDMA 混合，BW 计算公式可能不同 |
 
-纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量为 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。pplx-garden 混合模式的高带宽数字主要来自 NVLink 卸载。
-
-LL 模式差距较小（366 vs 504 μs），因为 **UCCL-EP 在 LL 模式也使用 NVLink**（`allow_nvlink_for_low_latency_mode=True`），差距主要来自 kernel/proxy 实现效率。
+LL 模式下 pplx-garden（366 μs）vs UCCL-EP（504 μs），两者都使用 NVLink + RDMA 混合架构，差距主要来自 kernel/proxy 实现效率。
 
 使用 UCCL-EP 的 pplx-style benchmark（`test_low_latency_pplx.py`）进行 apple-to-apple 对比，UCCL-EP D+C ~519 μs vs pplx-garden ~366 μs，差距 ~42%。UCCL-EP pplx-style benchmark 的 Dispatch BW 41.4 GB/s、Combine BW 43.8 GB/s，与 pplx-garden 纯 RDMA 模式的 34-40 GB/s 在同一量级。
 

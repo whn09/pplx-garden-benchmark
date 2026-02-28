@@ -20,7 +20,7 @@ This document compares 4 approaches to enable DeepEP-equivalent functionality on
 | **EFA validated** | No (known compat bugs) | Yes, multi-platform | No | Yes, with benchmarks |
 | **AMD GPU support** | No (NCCL limitation) | Yes | No (NVSHMEM limitation) | No |
 | **DeepEP API compatible** | Yes (same codebase) | Yes (compatible interface) | Yes (same codebase) | No (independent API) |
-| **Intra-node transfer** | NVLink (via NCCL) | NVLink in LL mode, all-RDMA in Normal | NVLink (via NVSHMEM) | NVLink (always hybrid NVLink + RDMA) |
+| **Intra-node transfer** | NVLink (via NCCL) | NVLink (always hybrid NVLink + RDMA) | NVLink (via NVSHMEM) | NVLink (always hybrid NVLink + RDMA) |
 | **Language** | C++/CUDA | C++/CUDA | C++/CUDA | Rust + CUDA |
 | **Open-source status** | PR not merged | Released | Requires custom work | Released |
 
@@ -59,9 +59,10 @@ pplx-garden (NVLink + RDMA hybrid):
   Inter-node 8/16 GPUs → EFA RDMA             → only ~50% data on wire
   Reported BW = total_data / total_time = appears high
 
-UCCL-EP (all-RDMA):
-  All 16/16 GPUs → RDMA (ibverbs)             → 100% data on EFA
-  Reported BW = total_data / total_time = actual EFA throughput
+UCCL-EP (also hybrid NVLink + RDMA):
+  Intra-node 8/16 GPUs → NVLink               → nearly instant
+  Inter-node 8/16 GPUs → RDMA (ibverbs)        → only ~50% data on wire
+  Reported BW may differ due to calculation formula differences
 ```
 
 Estimated actual EFA throughput (inter-node data only):
@@ -70,7 +71,7 @@ Estimated actual EFA throughput (inter-node data only):
 |----------|------------|-------------------------|
 | pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s (50% data on EFA) |
 | pplx-garden (RDMA-only, measured) | 47.1 GB/s | **47.1 GB/s** (100% data on EFA) |
-| UCCL-EP (all-RDMA) | 49.7 GB/s | **49.7 GB/s** (100% data on EFA) |
+| UCCL-EP (also NVL+RDMA) | 49.7 GB/s | ~49.7 GB/s (BW calculation may differ) |
 
 > RDMA-only measurement confirms the analysis: pplx-garden without NVLink achieves 47-49 GB/s EFA throughput, on par with UCCL-EP's 50-58 GB/s.
 >
@@ -111,7 +112,7 @@ Estimated actual EFA throughput (inter-node data only):
 - Highest actual EFA throughput in Normal mode (49.7 GB/s vs pplx-garden's ~41.7 GB/s)
 
 **Limitations**:
-- LL mode latency higher than pplx-garden (504 us vs 366 us), partly because Normal mode sends intra-node data over RDMA too
+- LL mode latency higher than pplx-garden (504 us vs 366 us), mainly due to kernel/proxy implementation efficiency differences
 - LL mode latency ~1.6x higher than IBGDA due to CPU proxy overhead
 
 **Verdict**: The most mature and reliable EFA solution today. Best cross-platform compatibility. Highest actual EFA utilization.
