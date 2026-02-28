@@ -110,9 +110,10 @@ echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
 参见 [scripts/](scripts/) 目录：
 
-- `run_ll.sh` — LL 模式（128 tokens，decode 场景）
-- `run_normal.sh` — Normal 模式（4096 tokens，prefill 场景）
-- `run_ll_rdma_only.sh` — LL 模式，纯 RDMA（不用 NVLink）
+- `run_ll.sh` — LL 模式，NVLink + RDMA（128 tokens，decode 场景）
+- `run_normal.sh` — Normal 模式，NVLink + RDMA（4096 tokens，prefill 场景）
+- `run_ll_rdma_only.sh` — LL 模式，纯 RDMA（不用 NVLink，用于拆分对比）
+- `run_normal_rdma_only.sh` — Normal 模式，纯 RDMA（不用 NVLink，用于拆分对比）
 
 用法：
 
