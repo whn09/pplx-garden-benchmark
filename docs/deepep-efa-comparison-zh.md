@@ -36,7 +36,8 @@
 | **pplx-garden** NVL+RDMA (实测) | 145 us | 52.4 GB/s | 221 us | 66.7 GB/s | **~366 us** | B200 + 400G EFA |
 | **pplx-garden** 纯 RDMA (实测) | 220 us | 34.4 GB/s | 364 us | 40.4 GB/s | ~584 us | B200 + 400G EFA |
 | **UCCL-EP** (README) | 228 us | 33 GB/s | 318 us | 46 GB/s | ~546 us | B200 + 400G EFA |
-| **UCCL-EP** (实测) | - | - | - | - | ~504 us | B200 + 400G EFA |
+| **UCCL-EP** test_low_latency (实测) | - | - | - | - | ~504 us | B200 + 400G EFA |
+| **UCCL-EP** pplx-style (实测) | 183 us | 41.4 GB/s | 335 us | 43.8 GB/s | ~519 us | B200 + 400G EFA |
 
 ### Normal 模式 (16 EP, 4096 tokens, 7168 hidden, top-8)
 
@@ -74,6 +75,8 @@ UCCL-EP (全 RDMA):
 > 纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。
 >
 > LL 模式下差距较小（366 vs 504 us），因为 UCCL-EP 在 LL 模式也使用 NVLink（`allow_nvlink_for_low_latency_mode=True`），差距主要来自 kernel/proxy 实现效率差异。
+>
+> 使用 UCCL-EP 的 pplx-style benchmark（`test_low_latency_pplx.py`，288 experts）进行 apple-to-apple 对比，UCCL-EP D+C ~519 us vs pplx-garden ~366 us。
 
 ## 各方案详细分析
 

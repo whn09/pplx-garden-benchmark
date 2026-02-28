@@ -110,10 +110,14 @@ echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
 参见 [scripts/](scripts/) 目录：
 
+**pplx-garden:**
 - `run_ll.sh` — LL 模式，NVLink + RDMA（128 tokens，decode 场景）
 - `run_normal.sh` — Normal 模式，NVLink + RDMA（4096 tokens，prefill 场景）
 - `run_ll_rdma_only.sh` — LL 模式，纯 RDMA（不用 NVLink，用于拆分对比）
 - `run_normal_rdma_only.sh` — Normal 模式，纯 RDMA（不用 NVLink，用于拆分对比）
+
+**UCCL-EP（使用 pplx-style benchmark，apple-to-apple 对比）：**
+- `run_uccl_pplx_ll.sh` — UCCL-EP LL 模式，使用 `test_low_latency_pplx.py`
 
 用法：
 
@@ -121,7 +125,7 @@ echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 # 在 bastion 机器上执行，会 SSH 到两个节点并行启动 benchmark
 bash scripts/run_ll.sh
 bash scripts/run_normal.sh
-bash scripts/run_ll_rdma_only.sh
+bash scripts/run_uccl_pplx_ll.sh
 ```
 
 ## 性能结果
@@ -151,7 +155,8 @@ NVLink 加速效果：D+C 从 14714 μs 降至 8090 μs，**节省 45%**。
 | **pplx-garden** NVL+RDMA (实测) | 145 μs | 221 μs | **~366 μs** | B200 + 400G EFA |
 | **pplx-garden** 纯 RDMA (实测) | 220 μs | 364 μs | **~584 μs** | B200 + 400G EFA |
 | **pplx-garden** EFA (官方 README) | 215 μs | 242 μs | ~457 μs | H100 + EFA |
-| **UCCL-EP** (实测) | — | — | ~504 μs | B200 + 400G EFA |
+| **UCCL-EP** test_low_latency (实测) | — | — | ~504 μs | B200 + 400G EFA |
+| **UCCL-EP** pplx-style (实测) | 183 μs | 335 μs | **~519 μs** | B200 + 400G EFA |
 | **DeepEP** IBGDA (官方 README) | 118 μs | 195 μs | ~313 μs | H800 + CX7 IB |
 
 ### 与其他方案对比 (16 EP, Normal 模式)
@@ -188,6 +193,8 @@ UCCL-EP (全 RDMA):
 纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量为 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。pplx-garden 混合模式的高带宽数字主要来自 NVLink 卸载。
 
 LL 模式差距较小（366 vs 504 μs），因为 **UCCL-EP 在 LL 模式也使用 NVLink**（`allow_nvlink_for_low_latency_mode=True`），差距主要来自 kernel/proxy 实现效率。
+
+使用 UCCL-EP 的 pplx-style benchmark（`test_low_latency_pplx.py`）进行 apple-to-apple 对比，UCCL-EP D+C ~519 μs vs pplx-garden ~366 μs，差距 ~42%。UCCL-EP pplx-style benchmark 的 Dispatch BW 41.4 GB/s、Combine BW 43.8 GB/s，与 pplx-garden 纯 RDMA 模式的 34-40 GB/s 在同一量级。
 
 ## 已知问题
 

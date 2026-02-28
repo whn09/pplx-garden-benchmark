@@ -36,7 +36,8 @@ This document compares 4 approaches to enable DeepEP-equivalent functionality on
 | **pplx-garden** NVL+RDMA (measured) | 145 us | 52.4 GB/s | 221 us | 66.7 GB/s | **~366 us** | B200 + 400G EFA |
 | **pplx-garden** RDMA-only (measured) | 220 us | 34.4 GB/s | 364 us | 40.4 GB/s | ~584 us | B200 + 400G EFA |
 | **UCCL-EP** (README) | 228 us | 33 GB/s | 318 us | 46 GB/s | ~546 us | B200 + 400G EFA |
-| **UCCL-EP** (measured) | - | - | - | - | ~504 us | B200 + 400G EFA |
+| **UCCL-EP** test_low_latency (measured) | - | - | - | - | ~504 us | B200 + 400G EFA |
+| **UCCL-EP** pplx-style (measured) | 183 us | 41.4 GB/s | 335 us | 43.8 GB/s | ~519 us | B200 + 400G EFA |
 
 ### Normal (High-Throughput) Mode (16 EP, 4096 tokens, 7168 hidden, top-8)
 
@@ -74,6 +75,8 @@ Estimated actual EFA throughput (inter-node data only):
 > RDMA-only measurement confirms the analysis: pplx-garden without NVLink achieves 47-49 GB/s EFA throughput, on par with UCCL-EP's 50-58 GB/s.
 >
 > In LL mode the gap is smaller (366 vs 504 us), because UCCL-EP also uses NVLink in LL mode (`allow_nvlink_for_low_latency_mode=True`). The remaining gap is due to kernel/proxy implementation efficiency.
+>
+> Using UCCL-EP's pplx-style benchmark (`test_low_latency_pplx.py`, 288 experts) for apple-to-apple comparison, UCCL-EP D+C ~519 us vs pplx-garden ~366 us.
 
 ## Detailed Analysis
 
