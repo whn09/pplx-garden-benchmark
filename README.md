@@ -139,8 +139,9 @@ NVLink 加速效果：D+C 从 584 μs 降至 366 μs，**节省 37%**。
 | 传输模式 | Dispatch (p50) | Dispatch BW | Combine (p50) | Combine BW | D+C 总延迟 |
 |---------|---------------|-------------|--------------|------------|-----------|
 | **NVLink + RDMA** | 2903 μs | 83.4 GB/s | 5187 μs | 90.6 GB/s | **~8090 μs** |
+| **纯 RDMA** | 5148 μs | 47.1 GB/s | 9566 μs | 49.1 GB/s | **~14714 μs** |
 
-> Normal 纯 RDMA 模式因 buffer 过大（无 NVLink 共享时每卡需独立缓冲区）导致 B200 183GB 显存 OOM，未能测试。
+NVLink 加速效果：D+C 从 14714 μs 降至 8090 μs，**节省 45%**。
 
 ### 与其他方案对比 (16 EP, LL 模式)
 
@@ -180,9 +181,10 @@ UCCL-EP (全 RDMA):
 | 方案 | 报告带宽 | 实际 EFA 吞吐量（估算） |
 |------|---------|----------------------|
 | pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s（50% 数据走 EFA）|
-| UCCL-EP (全 RDMA) | 49.7 GB/s | ~49.7 GB/s（100% 数据走 EFA）|
+| pplx-garden (纯 RDMA，实测) | 47.1 GB/s | **47.1 GB/s**（100% 数据走 EFA）|
+| UCCL-EP (全 RDMA) | 49.7 GB/s | **49.7 GB/s**（100% 数据走 EFA）|
 
-UCCL-EP 的 EFA 利用率实际更高。pplx-garden 的优势在于用 NVLink 卸载了 50% 的节点内流量，减少了 EFA 负载。
+纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量为 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。pplx-garden 混合模式的高带宽数字主要来自 NVLink 卸载。
 
 LL 模式差距较小（366 vs 504 μs），因为 **UCCL-EP 在 LL 模式也使用 NVLink**（`allow_nvlink_for_low_latency_mode=True`），差距主要来自 kernel/proxy 实现效率。
 

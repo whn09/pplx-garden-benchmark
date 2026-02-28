@@ -45,6 +45,7 @@
 | **DeepEP** (IBGDA) | - | 43-58 GB/s | - | 类似 | - | H800 + CX7 IB |
 | **pplx-garden** EFA (官方) | 3197 us | - | 5379 us | - | ~8576 us | H100 + EFA |
 | **pplx-garden** NVL+RDMA (实测) | 2903 us | 83.4 GB/s | 5187 us | 90.6 GB/s | **~8090 us** | B200 + 400G EFA |
+| **pplx-garden** 纯 RDMA (实测) | 5148 us | 47.1 GB/s | 9566 us | 49.1 GB/s | ~14714 us | B200 + 400G EFA |
 | **UCCL-EP** (实测) | - | 49.7 GB/s | - | 57.7 GB/s | - | B200 + 400G EFA |
 
 ### 带宽数据解读
@@ -67,9 +68,10 @@ UCCL-EP (全 RDMA):
 | 方案 | 报告带宽 | 实际 EFA 吞吐量（估算） |
 |------|---------|----------------------|
 | pplx-garden (NVL+RDMA) | 83.4 GB/s | ~41.7 GB/s（50% 数据走 EFA）|
-| UCCL-EP (全 RDMA) | 49.7 GB/s | ~49.7 GB/s（100% 数据走 EFA）|
+| pplx-garden (纯 RDMA，实测) | 47.1 GB/s | **47.1 GB/s**（100% 数据走 EFA）|
+| UCCL-EP (全 RDMA) | 49.7 GB/s | **49.7 GB/s**（100% 数据走 EFA）|
 
-> UCCL-EP 的 EFA 利用率实际更高。pplx-garden 的优势在于用 NVLink 卸载了 50% 的节点内流量。
+> 纯 RDMA 实测验证了分析：pplx-garden 去掉 NVLink 后 EFA 吞吐量 47-49 GB/s，与 UCCL-EP 的 50-58 GB/s 基本一致。
 >
 > LL 模式下差距较小（366 vs 504 us），因为 UCCL-EP 在 LL 模式也使用 NVLink（`allow_nvlink_for_low_latency_mode=True`），差距主要来自 kernel/proxy 实现效率差异。
 
